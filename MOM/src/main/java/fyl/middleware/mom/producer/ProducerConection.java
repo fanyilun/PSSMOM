@@ -54,9 +54,9 @@ public class ProducerConection extends ChannelInboundHandlerAdapter {
 		if (!connected) {
 			throw new IllegalStateException("not connected");
 		}
-		channel.writeAndFlush(msgExt);
-		waitingThread.put(msgExt.getMessage().getMsgId(),
+		waitingThread.put(msgExt.getMessage().getMsgId(),//TODO id生成方式不靠谱
 				Thread.currentThread());
+		channel.writeAndFlush(msgExt);
 		try {
 			TimeUnit.MILLISECONDS.sleep(Integer.MAX_VALUE);
 		} catch (InterruptedException e) {
@@ -151,6 +151,8 @@ public class ProducerConection extends ChannelInboundHandlerAdapter {
 			Thread t = waitingThread.get(result.getMsgId());
 			if (t != null) {
 				t.interrupt();
+			}else{
+				System.out.println("Error:MsgID repeated");
 			}
 			if (callback != null) {
 				callback.onResult(result);

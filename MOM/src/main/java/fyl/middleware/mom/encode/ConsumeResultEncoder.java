@@ -18,7 +18,7 @@ public class ConsumeResultEncoder extends BaseEncoder{
 		ConsumeResult consumeResult = (ConsumeResult) msg;
 		
 		out.writeInt(0); //对象长度 占位用
-		out.writeByte(3); //3表示SendResult
+		out.writeByte(3); //3表示ConsumeResult
 		writeString(out, consumeResult.getInfo());
 		out.writeBoolean(consumeResult.getStatus()==ConsumeStatus.SUCCESS);
 	}

@@ -15,6 +15,7 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
  * 消息服务器Broker
  */
 public class Broker {
+	
     private static final int PORT = 9999;
     private RegistServer registserver=new RegistServer();
     
@@ -41,9 +42,7 @@ public class Broker {
                                     .option(ChannelOption.TCP_NODELAY, true);
 
             ChannelFuture channelFuture = serverBootstrap.bind().sync();
-
-            System.out.println("Netty Server starts successfully!!");
-
+            System.out.println("MOM Server starts successfully!!");
             channelFuture.channel().closeFuture().sync();
         } catch (InterruptedException e) {
             e.printStackTrace();

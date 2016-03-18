@@ -2,9 +2,12 @@ package fyl.middleware.mom.encode;
 
 import io.netty.buffer.ByteBuf;
 
+import java.nio.charset.Charset;
 import java.util.Map;
 
 public class BaseDecoder {
+
+	private static Charset charset = Charset.forName("utf-8");
 
 	protected void readMap(ByteBuf frame, Map<String, String> propertyMap) {
 		int length = frame.readInt();
@@ -17,22 +20,22 @@ public class BaseDecoder {
 
 	protected String readString(ByteBuf frame) {
 		int length = frame.readInt();
-		if(length<0){
+		if (length < 0) {
 			return null;
 		}
 		byte[] arr = new byte[length];
 		frame.readBytes(arr);
-		return new String(arr);
+		return new String(arr, charset);
 	}
-	
-	protected byte[] readByteArray(ByteBuf frame){
+
+	protected byte[] readByteArray(ByteBuf frame) {
 		int length = frame.readInt();
-		if(length<0){
+		if (length < 0) {
 			return null;
 		}
 		byte[] arr = new byte[length];
 		frame.readBytes(arr);
 		return arr;
 	}
-	
+
 }

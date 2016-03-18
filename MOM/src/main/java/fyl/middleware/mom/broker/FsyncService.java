@@ -3,7 +3,7 @@ package fyl.middleware.mom.broker;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import fyl.middleware.mom.data.DataHelper;
+import fyl.middleware.mom.data.FileManager;
 
 /**
  * 刷盘专用线程
@@ -14,26 +14,28 @@ import fyl.middleware.mom.data.DataHelper;
  */
 public class FsyncService extends Thread{
 	
-	Queue<AckWaitingEntry> waitingQueue;
+	private Queue<AckWaitingEntry> waitingQueue;
 	
 	public FsyncService() {
 		waitingQueue = new ConcurrentLinkedQueue<AckWaitingEntry>();
 		start();
 	}
 	
-	public void put(AckWaitingEntry entry){
+	public synchronized void put(AckWaitingEntry entry){
 		waitingQueue.add(entry);
 	}
 
 	@Override
 	public void run() {
 		while(true){
-			if(!waitingQueue.isEmpty()){
-				DataHelper.force();
-			}
-			while(!waitingQueue.isEmpty()){
-				AckWaitingEntry entry = waitingQueue.poll();
-				entry.ctx.writeAndFlush(entry.result);
+			synchronized (this) {
+				if(!waitingQueue.isEmpty()){
+					FileManager.force();
+				}
+				while(!waitingQueue.isEmpty()){
+					AckWaitingEntry entry = waitingQueue.poll();
+					entry.ctx.writeAndFlush(entry.result);
+				}
 			}
 			try {
 				Thread.sleep(500);

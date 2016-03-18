@@ -1,6 +1,7 @@
 package fyl.middleware.mom.broker;
 
 import fyl.middleware.mom.api.ConsumeResult;
+import fyl.middleware.mom.api.ConsumeStatus;
 import fyl.middleware.mom.api.MessageExt;
 import fyl.middleware.mom.data.DataHelper;
 import fyl.middleware.mom.utils.StringUtils;
@@ -69,8 +70,15 @@ public class MomServerHandler extends ChannelInboundHandlerAdapter {
 				registserver.sendMsg(message, ctx);
 			}
 		} else if (msg instanceof ConsumeResult) {
-			DataHelper.deleteMessage(Long.parseLong(((ConsumeResult) msg)
-					.getInfo()));
+			ConsumeResult result = (ConsumeResult) msg;
+			if (result.getStatus() == ConsumeStatus.SUCCESS) {
+				DataHelper.deleteMessage(Long.parseLong(((ConsumeResult) msg)
+						.getInfo()));
+			} else {
+				// TODO 重发消息
+			}
+		}else{
+			System.out.println("err!!!!!!!!");
 		}
 
 	}

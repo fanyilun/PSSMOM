@@ -1,7 +1,6 @@
 package fyl.middleware.mom.consumer;
 
 import fyl.middleware.mom.api.ConsumeResult;
-import fyl.middleware.mom.api.ConsumeStatus;
 import fyl.middleware.mom.api.Message;
 import fyl.middleware.mom.api.MessageExt;
 import fyl.middleware.mom.api.MessageListener;
@@ -74,11 +73,9 @@ public class ConsumerConnectionHandler extends ChannelInboundHandlerAdapter {
 			throws Exception {
 		MessageExt message = (MessageExt) msg;
 		if (message.getType()==MessageExt.TYPE_PRODUCER) {
-			listener.onMessage(message.getMessage());
 			// 返回确认
-			ConsumeResult consumeResult = new ConsumeResult();
-			consumeResult.setStatus(ConsumeStatus.SUCCESS);
-			consumeResult.setInfo(String.valueOf(message.getStoreIndex()));
+			ConsumeResult consumeResult = listener.onMessage(message.getMessage());
+			consumeResult.setInfo(String.valueOf(message.getStoreIndex()));//TODO 换个字段
 			ctx.writeAndFlush(consumeResult);
 		} else if (message.getType()==MessageExt.TYPE_BROKER) {
 			// 成功接收到ping

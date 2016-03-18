@@ -21,7 +21,7 @@ public class RegistServer {
 
 	private Map<String/*topic*/, Set<String/*groupId*/>> brokerMap;
 	private Map<String/*groupId*/, Set<MomServerHandler>> groupRouter;
-	private int msgIndex = 0;
+	private int msgIndex ;
 	private static final int FSYNC_COMMIT_COUNT = 6;
 	private FsyncService fsyncService;
 	private Random r;
@@ -84,11 +84,11 @@ public class RegistServer {
 			indexMap.put(groupId, index);
 		}
 		fsyncService.put(new AckWaitingEntry(ctx, sendResult(message, succ)));
-		if(msgIndex<FSYNC_COMMIT_COUNT){
-			msgIndex++;
-		}else{
+		if(msgIndex>FSYNC_COMMIT_COUNT){
 			fsyncService.interrupt();
 			msgIndex=0;
+		}else{
+			msgIndex++;
 		}
 		Iterator<Entry<String, Long>> mapIterator = indexMap.entrySet()
 				.iterator();
@@ -127,5 +127,9 @@ public class RegistServer {
 
 	public Map<String, Set<String>> getBrokerMap() {
 		return brokerMap;
+	}
+	
+	public void reSendMsg(MessageExt msgExt){
+		
 	}
 }

@@ -2,19 +2,22 @@ package fyl.middleware.mom.encode;
 
 import io.netty.buffer.ByteBuf;
 
+import java.nio.charset.Charset;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 
 public class BaseEncoder {
 
+	private static Charset charset=Charset.forName("utf-8");
+	
 	protected void writeString(ByteBuf out, String s){
 		if(s==null){
 			out.writeInt(-1);
 			return;
 		}
 		out.writeInt(s.length());
-		out.writeBytes(s.getBytes());
+		out.writeBytes(s.getBytes(charset));
 	}
 	
 	protected void writeByteArray(ByteBuf out, byte[] arr){
