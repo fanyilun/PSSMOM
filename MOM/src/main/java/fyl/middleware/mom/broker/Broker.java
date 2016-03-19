@@ -17,7 +17,7 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 public class Broker {
 	
     private static final int PORT = 9999;
-    private RegistServer registserver=new RegistServer();
+    private RegistService registserver=new RegistService();
     
     
     public Broker() {
@@ -39,7 +39,9 @@ public class Broker {
                 }
             }).option(ChannelOption.SO_BACKLOG, 1024)
                                     .option(ChannelOption.SO_REUSEADDR, true)
-                                    .option(ChannelOption.TCP_NODELAY, true);
+                                    .option(ChannelOption.TCP_NODELAY, true)
+                                    .option(ChannelOption.SO_SNDBUF, 65536)
+                                    .option(ChannelOption.SO_RCVBUF,65536);
 
             ChannelFuture channelFuture = serverBootstrap.bind().sync();
             System.out.println("MOM Server starts successfully!!");

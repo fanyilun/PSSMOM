@@ -4,6 +4,7 @@ import fyl.middleware.mom.api.ConsumeResult;
 import fyl.middleware.mom.api.Message;
 import fyl.middleware.mom.api.MessageExt;
 import fyl.middleware.mom.api.MessageListener;
+import fyl.middleware.mom.api.MsgID;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.timeout.IdleStateEvent;
@@ -75,7 +76,9 @@ public class ConsumerConnectionHandler extends ChannelInboundHandlerAdapter {
 		if (message.getType()==MessageExt.TYPE_PRODUCER) {
 			// 返回确认
 			ConsumeResult consumeResult = listener.onMessage(message.getMessage());
-			consumeResult.setInfo(String.valueOf(message.getStoreIndex()));//TODO 换个字段
+			consumeResult.setMsgId(message.getMsgId());
+			consumeResult.setGroupId(message.getGroupId());
+			consumeResult.setStorageIndex(message.getStoreIndex());
 			ctx.writeAndFlush(consumeResult);
 		} else if (message.getType()==MessageExt.TYPE_BROKER) {
 			// 成功接收到ping
@@ -105,8 +108,9 @@ public class ConsumerConnectionHandler extends ChannelInboundHandlerAdapter {
 			switch (e.state()) {
 			case WRITER_IDLE:
 				Message msg = new Message();
-				msg.setBornTime(System.currentTimeMillis());
 				MessageExt msgext = new MessageExt(msg);
+				msgext.setMsgId(new MsgID());
+				msg.setBornTime(System.currentTimeMillis());
 				msgext.setType(MessageExt.TYPE_CONSUMER);
 				msgext.setAction(MessageExt.ACTION_PING);
 				msgext.setGroupId(groupId);

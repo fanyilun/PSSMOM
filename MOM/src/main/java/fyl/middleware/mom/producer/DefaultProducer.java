@@ -2,11 +2,11 @@ package fyl.middleware.mom.producer;
 
 import fyl.middleware.mom.api.Message;
 import fyl.middleware.mom.api.MessageExt;
+import fyl.middleware.mom.api.MsgID;
 import fyl.middleware.mom.api.Producer;
 import fyl.middleware.mom.api.SendCallback;
 import fyl.middleware.mom.api.SendResult;
 import fyl.middleware.mom.api.SendStatus;
-import fyl.middleware.mom.broker.MessageCenter;
 
 public class DefaultProducer implements Producer {
 
@@ -60,9 +60,9 @@ public class DefaultProducer implements Producer {
 	 */
 	public SendResult sendMessage(Message message) {
 		message.setTopic(topic);
-		message.setMsgId(MessageCenter.generateId());// TODO 全局唯一
-		message.setBornTime(System.currentTimeMillis());
 		MessageExt msgExt = new MessageExt(message);
+		msgExt.setMsgId(new MsgID());
+		message.setBornTime(System.currentTimeMillis());
 		msgExt.setGroupId(groupId);
 		try {
 			return producerConection.sendMessage(msgExt);
@@ -70,7 +70,7 @@ public class DefaultProducer implements Producer {
 			throwable.printStackTrace();
 		}
 		SendResult result = new SendResult();
-		result.setMsgId(message.getMsgId());
+		result.setMsgId(msgExt.getMsgId());
 		result.setStatus(SendStatus.FAIL);
 		return result;
 	}
@@ -83,9 +83,9 @@ public class DefaultProducer implements Producer {
 	 */
 	public void asyncSendMessage(Message message, SendCallback callback) {
 		message.setTopic(topic);
-		message.setMsgId(MessageCenter.generateId());
-		message.setBornTime(System.currentTimeMillis());
 		MessageExt msgExt = new MessageExt(message);
+		msgExt.setMsgId(new MsgID());
+		message.setBornTime(System.currentTimeMillis());
 		msgExt.setGroupId(groupId);
 		producerConection.asyncSendMessage(msgExt, callback);
 	}

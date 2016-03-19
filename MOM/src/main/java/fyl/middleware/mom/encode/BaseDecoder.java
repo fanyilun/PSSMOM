@@ -38,4 +38,9 @@ public class BaseDecoder {
 		return arr;
 	}
 
+	protected byte[] readMsgID(ByteBuf frame) {
+		byte[] arr = new byte[16];
+		frame.readBytes(arr);
+		return arr;
+	}
 }

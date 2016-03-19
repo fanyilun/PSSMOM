@@ -13,9 +13,8 @@ public class MsgExtEncoder extends BaseEncoder{
 
 	public void encode(ByteBuf out, Object msg) {
 		MessageExt msgExt = (MessageExt) msg;
-		
-		out.writeInt(0); //对象长度 占位用
 		out.writeByte(1); //1表示MessageExt
+		writeMsgId(out, msgExt.getMsgId().getIdData()); 
 		out.writeByte(msgExt.getType());
 		out.writeByte(msgExt.getAction());
 		writeString(out, msgExt.getGroupId());
@@ -26,7 +25,6 @@ public class MsgExtEncoder extends BaseEncoder{
 		if(message==null){
 			return;
 		}
-		writeString(out, message.getMsgId());
 		writeString(out, message.getTopic());
 		out.writeLong(message.getBornTime());
 		writeByteArray(out, message.getBody());

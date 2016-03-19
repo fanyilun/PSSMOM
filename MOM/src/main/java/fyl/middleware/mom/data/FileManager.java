@@ -1,5 +1,7 @@
 package fyl.middleware.mom.data;
 
+import io.netty.buffer.Unpooled;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -7,7 +9,12 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+
+import fyl.middleware.mom.api.MessageExt;
+import fyl.middleware.mom.api.MsgID;
+import fyl.middleware.mom.encode.MsgExtDecoder;
 
 /**
  * 存储文件管理，实现动态伸缩
@@ -32,6 +39,7 @@ public class FileManager {
 	private static final int MsgFixedLength = 200;
 	private static final int flateThreshold = (int) (MsgNumPerFile * 0.2);
 	private static volatile int queueLength;
+	private static MsgExtDecoder msgExtDecoder;
 
 	static void init() {
 		if (System.getProperty("user.home") != null) {
@@ -47,6 +55,7 @@ public class FileManager {
 		if (files != null) {
 			baseNo = files.length == 0 ? 0 : files.length;
 		}
+		msgExtDecoder = new MsgExtDecoder();
 		mappedList = new ArrayList<MappedByteBuffer>();
 		fileList = new ArrayList<RandomAccessFile>();
 		haveNewMsg = new ArrayList<Boolean>();
@@ -109,16 +118,44 @@ public class FileManager {
 		haveNewMsg.set(fileIndex, true);
 	}
 
-	public static void deleteData(long globalIndex) {
+	public static MessageExt readMsgFromFile(long globalIndex){
 		int fileIndex = (int) (globalIndex / MsgNumPerFile);
 		MappedByteBuffer mapBuf = mappedList.get(fileIndex);
+		byte[] tmp = new byte[MsgFixedLength-5];
 		synchronized (mapBuf) {
-			mapBuf.position((int) ((globalIndex % MsgNumPerFile) * MsgFixedLength));
-			mapBuf.putInt(0);
+			mapBuf.position((int) ((globalIndex % MsgNumPerFile) * MsgFixedLength)+5);
+			mapBuf.get(tmp);
 		}
-		queueLength++;
+		return msgExtDecoder.decode(Unpooled.wrappedBuffer(tmp));
 	}
-
+	
+	/**
+	 * 为防止重复发送的ConsumeResult 覆盖掉存储的新消息
+	 * 在删除之前会根据messageID验证
+	 * @param globalIndex
+	 * @param msgId
+	 * @return 是否成功删除
+	 */
+	public static boolean validateAndDelete(long globalIndex,MsgID msgId){
+		int fileIndex = (int) (globalIndex / MsgNumPerFile);
+		MappedByteBuffer mapBuf = mappedList.get(fileIndex);
+		byte[] tmp = new byte[16];
+		int startPosition = (int) ((globalIndex % MsgNumPerFile) * MsgFixedLength);
+		boolean success = false;
+		synchronized (mapBuf) {
+			mapBuf.position(startPosition+5);
+			mapBuf.get(tmp);
+			if(Arrays.equals(tmp, msgId.getIdData())){
+				//删除
+				mapBuf.position(startPosition);
+				mapBuf.putInt(0);
+				success=true;
+				queueLength++;
+			}
+		}
+		return success;
+	}
+	
 	public static void force() {
 		for (int i = 0; i < haveNewMsg.size(); i++) {
 			if (haveNewMsg.get(i)) {
@@ -129,7 +166,11 @@ public class FileManager {
 	}
 
 	public static void close() {
-		// TODO Auto-generated method stub
-
+		for (RandomAccessFile file : fileList) {
+			try {
+				file.close();
+			} catch (IOException e) {
+			}
+		}
 	}
 }

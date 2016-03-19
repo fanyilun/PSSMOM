@@ -2,6 +2,7 @@ package fyl.middleware.mom.encode;
 
 import fyl.middleware.mom.api.ConsumeResult;
 import fyl.middleware.mom.api.ConsumeStatus;
+import fyl.middleware.mom.api.MsgID;
 import io.netty.buffer.ByteBuf;
 
 /**
@@ -11,13 +12,13 @@ import io.netty.buffer.ByteBuf;
  */
 public class ConsumeResultDecoder extends BaseDecoder{
 
-	public ConsumeResultDecoder() {
-	}
-
 	public Object decode(ByteBuf frame) {
 		ConsumeResult result = new ConsumeResult();
 		result.setInfo(readString(frame));
 		result.setStatus(frame.readBoolean()?ConsumeStatus.SUCCESS:ConsumeStatus.FAIL);
+		result.setMsgId(new MsgID(readByteArray(frame)));
+		result.setStorageIndex(frame.readLong());
+		result.setGroupId(readString(frame));
 		return result;
 	}
 

@@ -7,6 +7,7 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import fyl.middleware.mom.api.MessageExt;
+import fyl.middleware.mom.api.MsgID;
 import fyl.middleware.mom.encode.MsgExtEncoder;
 
 /**
@@ -83,13 +84,15 @@ public class DataHelper {
 
 	}
 
-	public static boolean deleteMessage(long index) {
+	public static boolean deleteMessage(long index, MsgID MsgId) {
 		if (index < 0) {
 			return false;
 		}
-		FileManager.deleteData(index);
-		m1ValidQueue.add(index);
-		return true;
+		if(FileManager.validateAndDelete(index,MsgId)){
+			m1ValidQueue.add(index);
+			return true;
+		}
+		return false;
 	}
 
 	public static void close() {

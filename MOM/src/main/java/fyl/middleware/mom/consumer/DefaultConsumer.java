@@ -4,6 +4,7 @@ import fyl.middleware.mom.api.Consumer;
 import fyl.middleware.mom.api.Message;
 import fyl.middleware.mom.api.MessageExt;
 import fyl.middleware.mom.api.MessageListener;
+import fyl.middleware.mom.api.MsgID;
 
 /**
  * 消息消费者对象 由消息的消费方使用
@@ -51,8 +52,9 @@ public class DefaultConsumer implements Consumer {
 //			throw new ConsumerException("consumer groupId must be set");
 		}
 		Message msg = new Message();
-		subscribeMsg = new MessageExt(msg);
 		msg.setTopic(topic);
+		subscribeMsg = new MessageExt(msg);
+		subscribeMsg.setMsgId(new MsgID());
 		subscribeMsg.setGroupId(groupId);
 		subscribeMsg.setAction(MessageExt.ACTION_SUBSCRIBE);
 		subscribeMsg.setType(MessageExt.TYPE_CONSUMER);

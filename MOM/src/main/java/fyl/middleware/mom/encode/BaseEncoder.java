@@ -28,6 +28,15 @@ public class BaseEncoder {
 		out.writeInt(arr.length);
 		out.writeBytes(arr);
 	}
+	
+	/**
+	 * MsgId固定16字节长度
+	 * @param out
+	 * @param arr
+	 */
+	protected void writeMsgId(ByteBuf out, byte[] arr){
+		out.writeBytes(arr);
+	}
 
 	protected void writeMap(ByteBuf out, Map<String,String> map){
 		if(map==null){

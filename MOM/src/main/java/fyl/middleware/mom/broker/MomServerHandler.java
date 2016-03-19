@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class MomServerHandler extends ChannelInboundHandlerAdapter {
 
-	private RegistServer registserver;
+	private RegistService registserver;
 	private ChannelHandlerContext myCtx;
 	private String filterKey;
 	private String filterValue;
@@ -26,7 +26,7 @@ public class MomServerHandler extends ChannelInboundHandlerAdapter {
 	private long latestHeartBeat;
 	private Timer timer;
 
-	public MomServerHandler(RegistServer registserver) {
+	public MomServerHandler(RegistService registserver) {
 		this.registserver = registserver;
 	}
 
@@ -71,11 +71,12 @@ public class MomServerHandler extends ChannelInboundHandlerAdapter {
 			}
 		} else if (msg instanceof ConsumeResult) {
 			ConsumeResult result = (ConsumeResult) msg;
+			registserver.receivedConsumeResult(result);
 			if (result.getStatus() == ConsumeStatus.SUCCESS) {
-				DataHelper.deleteMessage(Long.parseLong(((ConsumeResult) msg)
-						.getInfo()));
+				DataHelper.deleteMessage(result
+						.getStorageIndex(),result.getMsgId());
 			} else {
-				// TODO 重发消息
+				// TODO 消费失败不再重发，而是交给业务去解决
 			}
 		}else{
 			System.out.println("err!!!!!!!!");
