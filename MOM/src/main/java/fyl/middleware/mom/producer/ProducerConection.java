@@ -23,13 +23,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 
 public class ProducerConection extends ChannelInboundHandlerAdapter {
-	
+
 	private String brokerIp;
 	public static final int PORT = 9999;
-	//事实证明，CountDownLatch性能要优于Thread.interrupt
+	// 事实证明，CountDownLatch性能要优于Thread.interrupt
 	private Map<MsgID, CountDownLatch> waitingThread = new ConcurrentHashMap<MsgID, CountDownLatch>();
 	private Map<MsgID, SendResult> sendResult = new ConcurrentHashMap<MsgID, SendResult>();
-	
 	private Channel channel;
 
 	private boolean connected;
@@ -57,13 +56,12 @@ public class ProducerConection extends ChannelInboundHandlerAdapter {
 			throw new IllegalStateException("not connected");
 		}
 		CountDownLatch c = new CountDownLatch(1);
-		waitingThread.put(msgExt.getMsgId(),
-				c);
+		waitingThread.put(msgExt.getMsgId(), c);
 		channel.writeAndFlush(msgExt);
 		c.await();
-			SendResult result = getSendResult(msgExt.getMsgId());
-			removeSendResult(msgExt.getMsgId());
-			return result;
+		SendResult result = getSendResult(msgExt.getMsgId());
+		removeSendResult(msgExt.getMsgId());
+		return result;
 	}
 
 	SendCallback callback;
@@ -92,15 +90,16 @@ public class ProducerConection extends ChannelInboundHandlerAdapter {
 							10 * 64 * 1024)
 					.option(ChannelOption.SO_KEEPALIVE, true)
 					.option(ChannelOption.TCP_NODELAY, true)
+					.option(ChannelOption.SO_REUSEADDR, true)
+					.option(ChannelOption.SO_SNDBUF, 65536)
+					.option(ChannelOption.SO_RCVBUF, 65536)
 					.handler(new ChannelInitializer<SocketChannel>() {
 
 						@Override
 						protected void initChannel(SocketChannel socketChannel)
 								throws Exception {
-							/** 增加编码解码器 */
 							socketChannel.pipeline().addLast(new MyDecoder());
 							socketChannel.pipeline().addLast(new MyEncoder());
-							/** 自己本身就是一个Handler */
 							socketChannel.pipeline().addLast(
 									ProducerConection.this);
 						}
@@ -148,9 +147,9 @@ public class ProducerConection extends ChannelInboundHandlerAdapter {
 			SendResult result = (SendResult) msg;
 			setSendResult(result.getMsgId(), result);
 			CountDownLatch c = waitingThread.get(result.getMsgId());
-			if(c!=null){
+			if (c != null) {
 				c.countDown();
-			}else{
+			} else {
 				System.out.println("Error:MsgID repeated");
 			}
 			if (callback != null) {

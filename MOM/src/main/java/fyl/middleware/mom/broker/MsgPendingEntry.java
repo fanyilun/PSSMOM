@@ -45,6 +45,9 @@ public class MsgPendingEntry {
 
 	@Override
 	public int hashCode() {
+		if(groupId==null){
+			return msgId.hashCode();
+		}
 		return msgId.hashCode()+groupId.hashCode();
 	}
 	

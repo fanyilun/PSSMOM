@@ -4,8 +4,8 @@ import io.netty.channel.ChannelHandlerContext;
 
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Random;
@@ -17,23 +17,37 @@ import fyl.middleware.mom.api.MessageExt;
 import fyl.middleware.mom.api.SendResult;
 import fyl.middleware.mom.api.SendStatus;
 import fyl.middleware.mom.data.DataHelper;
+import fyl.middleware.mom.data.FileManager;
+import fyl.middleware.mom.utils.CollectionUtils;
 
 public class RegistService {
 
-	private Map<String/*topic*/, Set<String/*groupId*/>> brokerMap;
-	private Map<String/*groupId*/, Set<MomServerHandler>> groupRouter;
-	private int msgIndex ; //要求并不严格，无需用AtomicInteger
-	private static final int FSYNC_COMMIT_COUNT = 15;//磁盘越慢、CPU负荷越大，该值就越大
+	private Map<String/* topic */, Set<String/* groupId */>> brokerMap;
+	private Map<String/* groupId */, Set<MomServerHandler>> groupRouter;
+	private int msgIndex; // 触发条件要求并不严格，无需用AtomicInteger
 	private FsyncService fsyncService;
 	private Random r;
 	private ReSendService resendService;
-	
-	public RegistService() {
+	private ServerConfig serverConfig;
+	private List<MessageExt> recoverList;
+
+	public RegistService(ServerConfig serverConfig) {
+		this.serverConfig = serverConfig;
 		brokerMap = new ConcurrentHashMap<String, Set<String>>();
 		groupRouter = new ConcurrentHashMap<String, Set<MomServerHandler>>();
 		fsyncService = new FsyncService();
-		resendService = new ReSendService(this);
-		r=new Random();
+		resendService = new ReSendService(this, serverConfig);
+		r = new Random();
+		recoverList = FileManager.recoverUnsendMsg();
+	}
+
+	/**
+	 * 重发尚未被消费的消息，服务器启动时调用
+	 */
+	public void recover() {
+		for (MessageExt msg : recoverList) {
+			sendMsgToConsumer(msg, msg.getGroupId(), msg.getStoreIndex(), 1);
+		}
 	}
 
 	public void setRegist(MessageExt message, MomServerHandler channel) {
@@ -42,14 +56,16 @@ public class RegistService {
 		if (brokerMap.containsKey(topic)) {
 			brokerMap.get(topic).add(groupId);
 		} else {
-			HashSet<String> groupSet = new HashSet<String>();
+			Set<String> groupSet = Collections
+					.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
 			groupSet.add(groupId);
 			brokerMap.put(topic, groupSet);
 		}
 		if (groupRouter.containsKey(groupId)) {
 			groupRouter.get(groupId).add(channel);
 		} else {
-			Set<MomServerHandler> chennelSet = Collections.newSetFromMap(new ConcurrentHashMap<MomServerHandler,Boolean>());
+			Set<MomServerHandler> chennelSet = Collections
+					.newSetFromMap(new ConcurrentHashMap<MomServerHandler, Boolean>());
 			chennelSet.add(channel);
 			groupRouter.put(groupId, chennelSet);
 		}
@@ -60,19 +76,11 @@ public class RegistService {
 		Set<String> groupSet = brokerMap.get(topic);
 		Map<String/* groupID */, Long/* storage index */> indexMap = new HashMap<String, Long>();
 		if (groupSet == null) {
-			// 没有人订阅 我们认为是topic不存在
-			System.out.println("no one registed");
-//			return;
-			// 但是根据测试用例来看，consumer订阅和producer发送消息是同时发起的
-			// 由于consumer订阅时做的事情多一点 经常导致先收到producer的消息 这样就发送失败了
-			try {
-				Thread.sleep(50);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-			if ((groupSet = brokerMap.get(topic)) == null) {
-				return;
-			}
+			// 没有人订阅
+			// 由于broker并不保存历史订阅关系，可能是因为1.消费者掉线 2.broker刚刚重启，消费者尚未重连
+			DataHelper.saveMessage(message);
+			sendMsgToConsumer(message, null, message.getStoreIndex(), 1);
+			return;
 		}
 		Iterator<String> i = groupSet.iterator();
 		boolean succ = true;
@@ -87,28 +95,45 @@ public class RegistService {
 			indexMap.put(groupId, index);
 		}
 		fsyncService.put(new AckWaitingEntry(ctx, sendResult(message, succ)));
-		if(msgIndex>FSYNC_COMMIT_COUNT){
+		if (msgIndex > serverConfig.getFSYNC_COMMIT_COUNT()) {
 			fsyncService.interrupt();
-			msgIndex=0;
-		}else{
+			msgIndex = 0;
+		} else {
 			msgIndex++;
 		}
 		Iterator<Entry<String, Long>> mapIterator = indexMap.entrySet()
 				.iterator();
 		while (mapIterator.hasNext()) {
 			Entry<String, Long> entry = mapIterator.next();
-			sendMsgToConsumer(message,entry.getKey(),entry.getValue(),1);
+			sendMsgToConsumer(message, entry.getKey(), entry.getValue(), 1);
 		}
 		return;
 	}
-	
-	
-	public boolean sendMsgToConsumer(MessageExt message,String groupId,Long index,int sendCount){
+
+	public boolean sendMsgToConsumer(MessageExt message, String groupId,
+			Long index, int sendCount) {
+		if (groupId == null) {// 说明发送时 无消费者连接
+			Set<String> groupSet = brokerMap.get(message.getMessage().getTopic());
+			if(CollectionUtils.isEmpty(groupSet)){
+				resendService.put(new MsgPendingEntry(message.getMsgId(), groupId,
+						sendCount), message);
+				return false;
+			}
+			Iterator<String> i = groupSet.iterator();
+			boolean succ = true;
+			while(i.hasNext()){
+				String groupTmp = i.next();
+				succ = sendMsgToConsumer(message, groupTmp,
+						message.getStoreIndex(), sendCount) && succ;
+			}
+			return succ;
+		}
 		message.setStoreIndex(index);
 		message.setGroupId(groupId);
 		Set<MomServerHandler> channels = groupRouter.get(groupId);
-		if (channels.size() == 0) {
-			resendService.put(new MsgPendingEntry(message.getMsgId(), groupId,sendCount), message);
+		if (channels==null || channels.size() == 0) {
+			resendService.put(new MsgPendingEntry(message.getMsgId(), groupId,
+					sendCount), message);
 			return false;
 		}
 		MomServerHandler[] channelArr = channels
@@ -117,13 +142,15 @@ public class RegistService {
 			MomServerHandler channel = channelArr[r.nextInt(channelArr.length)];
 			channel.sendMsgToConsumer(message);
 		} catch (Exception e) {
-			//这里产生的问题可能是1.突然连接断了，数组越界 2.发送失败
+			// 这里产生的问题可能是1.突然连接断了，数组越界 2.发送失败
 			e.printStackTrace();
-			//等待重发
-			resendService.put(new MsgPendingEntry(message.getMsgId(), groupId,sendCount), message);
+			// 等待重发
+			resendService.put(new MsgPendingEntry(message.getMsgId(), groupId,
+					sendCount), message);
 			return false;
 		}
-		resendService.put(new MsgPendingEntry(message.getMsgId(), groupId,sendCount), message);
+		resendService.put(new MsgPendingEntry(message.getMsgId(), groupId,
+				sendCount), message);
 		return true;
 	}
 
@@ -147,12 +174,9 @@ public class RegistService {
 	public Map<String, Set<String>> getBrokerMap() {
 		return brokerMap;
 	}
-	
-	public void reSendMsg(MessageExt msgExt){
-		
-	}
-	
-	public void receivedConsumeResult(ConsumeResult result){
-		resendService.remove(new MsgPendingEntry(result.getMsgId(), result.getGroupId()));
+
+	public void receivedConsumeResult(ConsumeResult result) {
+		resendService.remove(new MsgPendingEntry(result.getMsgId(), result
+				.getGroupId()));
 	}
 }
