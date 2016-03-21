@@ -27,6 +27,7 @@ public class MomServerHandler extends ChannelInboundHandlerAdapter {
 
 	public MomServerHandler(RegistService registserver) {
 		this.registserver = registserver;
+		registserver.initRandom();
 	}
 
 	public void setFilter(String filterKey, String filterValue) {

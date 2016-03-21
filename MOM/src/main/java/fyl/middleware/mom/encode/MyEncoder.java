@@ -24,7 +24,7 @@ public final class MyEncoder extends MessageToByteEncoder<Object> {
 	
 	@Override
 	protected void encode(final ChannelHandlerContext ctx, final Object msg, final ByteBuf out) throws Exception {
-		//对于结构化的对象传输，自定义对齐的方式要比普通序列化好的多
+		//对于结构化的对象传输，自定义对齐的方式要比普通序列化好
 		int startIdx = out.writerIndex();
 		out.writeInt(0); //对象长度 占位用
 		if(msg instanceof MessageExt){

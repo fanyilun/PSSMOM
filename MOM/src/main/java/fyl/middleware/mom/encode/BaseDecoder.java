@@ -7,7 +7,7 @@ import java.util.Map;
 
 public class BaseDecoder {
 
-	private static Charset charset = Charset.forName("utf-8");
+	private static Charset charset = Charset.forName("windows-1252");
 
 	protected void readMap(ByteBuf frame, Map<String, String> propertyMap) {
 		int length = frame.readInt();
@@ -43,4 +43,5 @@ public class BaseDecoder {
 		frame.readBytes(arr);
 		return arr;
 	}
+	
 }

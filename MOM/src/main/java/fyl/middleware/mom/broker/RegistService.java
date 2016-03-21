@@ -8,9 +8,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 
 import fyl.middleware.mom.api.ConsumeResult;
 import fyl.middleware.mom.api.MessageExt;
@@ -26,7 +26,7 @@ public class RegistService {
 	private Map<String/* groupId */, Set<MomServerHandler>> groupRouter;
 	private int msgIndex; // 触发条件要求并不严格，无需用AtomicInteger
 	private FsyncService fsyncService;
-	private Random r;
+	private ThreadLocalRandom r;
 	private ReSendService resendService;
 	private ServerConfig serverConfig;
 	private List<MessageExt> recoverList;
@@ -37,8 +37,13 @@ public class RegistService {
 		groupRouter = new ConcurrentHashMap<String, Set<MomServerHandler>>();
 		fsyncService = new FsyncService();
 		resendService = new ReSendService(this, serverConfig);
-		r = new Random();
+		
 		recoverList = FileManager.recoverUnsendMsg();
+	}
+	
+	public void initRandom(){
+		//Java推荐使用ThreadLocalRandom
+		r = ThreadLocalRandom.current();
 	}
 
 	/**

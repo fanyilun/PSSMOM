@@ -9,7 +9,7 @@ import java.util.Map.Entry;
 
 public class BaseEncoder {
 
-	private static Charset charset= Charset.forName("utf-8");
+	private static Charset charset= Charset.forName("windows-1252");
 	
 	protected void writeString(ByteBuf out, String s){
 		if(s==null){
