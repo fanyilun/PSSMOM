@@ -21,7 +21,7 @@ public class FsyncService extends Thread{
 		start();
 	}
 	
-	public synchronized void put(AckWaitingEntry entry){
+	public void put(AckWaitingEntry entry){
 		waitingQueue.add(entry);
 	}
 
